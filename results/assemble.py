@@ -16,7 +16,9 @@ def read_stars(path, directory, update=False):
     if not os.path.exists(filename) or update:
         with open(filename, 'w') as star_file:
             stars = []
-            for paths, directories, files in os.walk(path + directory):
+            # For each file in the target directory read the name of the file
+            # and locate the star ID used by BACCHUS (usually ELEM-STARID.abu)
+            for paths, directories, files in os.walk(f'{path}/{directory}'):
                 for file in files:
                     file = file.split(u'-')
                     file = file[1]
