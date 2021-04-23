@@ -39,6 +39,10 @@ def read_stars(path, directory, update=False):
 
 
 def get_element_list(path, update=False):
+    '''
+    Reads the BACCHUS line list files and returns a dictionary whose keys
+    are the elements and the values are lists of the lines that BACCHUS used.
+    '''
     elem_list = []
     lines_list = []
     line_list_file = open(f'{path}/elements.wln', 'r')
