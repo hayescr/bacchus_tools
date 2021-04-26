@@ -38,7 +38,7 @@ def read_stars(path, directory, update=False):
     return stars
 
 
-def get_element_list(path, update=False):
+def get_element_list(path):
     '''
     Reads the BACCHUS line list files and returns a dictionary whose keys
     are the elements and the values are lists of the lines that BACCHUS used.
