@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import h5py
+from bacchus_tools.solar_abundances import asplund_2005
 
 
 def read_stars(path, directory, update_starlist=False):
@@ -23,7 +24,7 @@ def read_stars(path, directory, update_starlist=False):
                     if file == '.DS_Store':
                         pass
                     else:
-                        file = file.split(u'-')
+                        file = file.split(u'-', 1)
                         file = file[1]
                         file = file.rstrip('.abu')
                         file = file.split('_')
@@ -135,6 +136,9 @@ def compile_measurements(path, directory, filename, stars=None, overwrite=False,
     # Create a new group for the target directory
     new_group = comp_file.create_group(directory)
 
+    data_array = extract_parameters(path, directory, stars)
+    data = new_group.create_dataset('param', data=data_array)
+
     for element, lines in elem_line_dict.items():
         data_array = extract_element(path, directory, stars, element, lines)
         data = new_group.create_dataset(element, data=data_array)
@@ -142,8 +146,8 @@ def compile_measurements(path, directory, filename, stars=None, overwrite=False,
 
 def extract_element(path, directory, stars, element, lines):
 
-        # We need are using a fixed format, so if a star is missing a line for an element
-        # we need to fill it with a null row which is setup here for ease later
+    # We need are using a fixed format, so if a star is missing a line for an element
+    # we need to fill it with a null row which is setup here for ease later
     nan_row = [np.nan, np.nan, np.nan, 9, np.nan, 9,
                np.nan, 9, np.nan, 9, np.nan, np.nan,
                np.nan, np.nan, np.nan, np.nan]
@@ -199,5 +203,62 @@ def extract_element(path, directory, stars, element, lines):
 
     input_dtype = [(value) for value in zip(new_header, new_dtypes)]
     data_array = np.array(element_comp_list, dtype=input_dtype)
+
+    return data_array
+
+
+def extract_parameters(path, directory, stars):
+    param_comp_list = []
+
+    # Need to extract all of the parameters (below) and then compile them
+    # into an array like in extract elements
+    # starid, teff, logg, metallicity, microturbulence, alpha_model, c_model
+    # convolution
+
+    def format_settings(string):
+        return float(string.split('= ')[-1].strip().strip("'"))
+
+    for i, star in enumerate(stars):
+        row = []
+        row += [star]
+        star_par_file = f'{path}/{directory}/{star}.par'
+
+        with open(star_par_file, 'r') as par_file:
+            par_lines = par_file.readlines()
+            model_lines = [
+                line for line in par_lines if line.find('set MODEL') != -1]
+            metallic_lines = [
+                line for line in par_lines if line.find('set METALLIC') != -1]
+            turbvel_lines = [
+                line for line in par_lines if line.find('set TURBVEL') != -1]
+            alpha_lines = [
+                line for line in par_lines if line.find('set alpha') != -1]
+            c_lines = [line for line in par_lines if line.find('set C') != -1]
+            convol_lines = [
+                line for line in par_lines if line.find('set convol') != -1]
+            snr_lines = [
+                line for line in par_lines if line.find('set SNR') != -1]
+
+            teff = float(model_lines[-1].split()[-1].split('g')[0])
+            logg = float(model_lines[-1].split()
+                         [-1].split('g')[1].split('m')[0])
+            metallic = format_settings(metallic_lines[-1])
+            turbvel = format_settings(turbvel_lines[-1])
+            alpha = format_settings(alpha_lines[0])
+            cfe = format_settings(c_lines[0]) - asplund_2005()['C'] - metallic
+            convol = format_settings(convol_lines[-1])
+            snr = format_settings(snr_lines[-1])
+            row += [teff, logg, metallic, turbvel, alpha, cfe, convol, snr]
+
+        param_comp_list += [tuple(row)]
+
+    header = ['STAR_ID', 'teff', 'log', 'fe_h', 'vmicro', 'alpha_fe',  'c_fe',
+              'convol', 'snr']
+
+    dtypes = ['S18', np.float_, np.float_, np.float_, np.float_, np.float_,
+              np.float_, np.float_, np.float_]
+
+    input_dtype = [(value) for value in zip(header, dtypes)]
+    data_array = np.array(param_comp_list, dtype=input_dtype)
 
     return data_array
