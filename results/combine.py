@@ -1,7 +1,7 @@
 import numpy as np
-import h5py
 from bacchus_tools.results import assemble
 from bacchus_tools.solar_abundances import asplund_2005
+from bacchus_tools.read_element_linelist import get_element_list
 
 # use_line = [0, 0, 0, 0, 1, 1]
 #
@@ -28,44 +28,22 @@ def calculate_abundances(table, group, elem, path='.', solar_abu=None,
     if solar_abu is None:
         solar_abu = asplund_2005()
 
-    # Load solar abundances if they aren't supplied
+    # Load the BACCHUS element line lists if they aren't supplied
     if elem_line_dict is None:
-        elem_line_dict = assemble.get_element_list(path)
+        elem_line_dict = get_element_list(path)
 
     # Set up the best lines settings if they aren't supplied
     if best_lines is None:
         best_lines = {elem: None}
-
-    # Set up the line, method and flag settings if they aren't supplied
-    # method_names = ['syn', 'eqw', 'int', 'chi2']
-    # if use_line is None:
-    #     use_line = [1] * len(elem_line_dict[elem])
-    # else:
-    #     assert len(use_line) == len(
-    #         elem_line_dict[elem]), f'use_line should be the same length as the number of lines ({len(elem_line_dict[elem])}) for this element ({elem})'
-    # if use_method is None:
-    #     use_method = {}
-    # if method_flags is None:
-    #     method_flags = {}
-    #
-    # for method in method_names:
-    #     if method not in use_method:
-    #         use_method[method] = use_line
-    #     else:
-    #         assert len(use_method[method]) == len(
-    #             elem_line_dict[elem]), f'the number of settings for use_method["{method}"] should be the same length as the number of lines ({len(elem_line_dict[elem])}) for this element ({elem})'
-    #     if method not in method_flags:
-    #         method_flags[method] = [[1]] * len(elem_line_dict[elem])
-    #     else:
-    #         assert len(method_flags[method]) == len(
-    #             elem_line_dict[elem]), f'the number of settings for method_flags["{method}"] should be the same length as the number of lines ({len(elem_line_dict[elem])}) for this element ({elem})'
 
     # Check the provided line, method, and flag settings
     use_line, use_method, method_flags = check_settings(elem, elem_line_dict,
                                                         use_line, use_method,
                                                         method_flags)
 
-    elem_vals, errors, elem_counts = combine_measurements(table, group, elem,
+    elem_table = table[f'{group}/{elem}']
+
+    elem_vals, errors, elem_counts = combine_measurements(elem_table, elem,
                                                           elem_line_dict,
                                                           best_lines, use_line,
                                                           use_method,
@@ -125,7 +103,7 @@ def check_settings(elem, elem_line_dict, use_line, use_method, method_flags):
     return use_line, use_method, method_flags
 
 
-def combine_measurements(table, group, elem, elem_line_dict, best_lines,
+def combine_measurements(elem_table, elem, elem_line_dict, best_lines,
                          use_line, use_method, method_flags):
     '''
     A function to average line-by-line abundances from BACCHUS (converted to a
@@ -136,8 +114,6 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
     '''
 
     # -------------------- Calculate average abundances ---------------------- #
-
-    elem_table = table[f'{group}/{elem}']
 
     elem_vals = np.zeros(len(elem_table))
     elem_counts = np.zeros(len(elem_table))
@@ -246,3 +222,31 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
     errors[np.isnan(elem_vals)] = np.nan
 
     return elem_vals, errors, elem_counts
+
+
+def package_lines(table, group, elem, path='.', elem_line_dict=None):
+
+    # Make an n stars x 4 x nlines array, loop through each method and each
+    # line and copy the array to storage[:,j,i] and then do the same for the
+    # flags and return these arrays (hope to save them as 4xnlines elements in
+    # a fits column)
+
+    # Load solar abundances if they aren't supplied
+    if elem_line_dict is None:
+        elem_line_dict = get_element_list(path)
+
+    elem_table = table[f'{group}/{elem}']
+
+    methods = ['syn', 'eqw', 'int', 'chi2']
+
+    abu_array = np.zeros((len(elem_table), len(elem_line_dict[elem]), 4))
+    flag_array = np.zeros((len(elem_table), len(elem_line_dict[elem]), 4))
+
+    for j, method in enumerate(methods):
+        for i in range(len(elem_line_dict[elem])):
+            abu_column = f'{elem}_{i + 1}_{method}'
+            flag_column = f'{elem}_{i+1}_flag_{method}'
+            abu_array[:, i, j] = elem_table[abu_column]
+            flag_array[:, i, j] = elem_table[flag_column]
+
+    return abu_array, flag_array
