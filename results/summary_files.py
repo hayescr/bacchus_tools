@@ -43,7 +43,7 @@ def write_fits(hdf5_tablename, group, elements, elements_filepath='.',
 
     param_formats = ['A18', 'E', 'E', 'E', 'E', 'E',  'E', 'E', 'E']
 
-    param_col_names = ['STAR_ID', 'teff', 'log', 'fe_h', 'vmicro', 'alpha_fe',
+    param_col_names = ['STAR_ID', 'teff', 'logg', 'fe_h', 'vmicro', 'alpha_fe',
                        'c_fe', 'convol', 'snr']
 
     for name, fits_format, col_name in zip(param_names, param_formats, param_col_names):

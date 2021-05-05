@@ -29,8 +29,8 @@ def read_stars(path, directory, update_starlist=False):
                         file = file[1]
                         file = file.rstrip('.abu')
                         file = file.split('_')
-                        star = f'{file[0]}_{file[1]}'
-                        # star = file[0]
+                        # star = f'{file[0]}_{file[1]}'
+                        star = file[0]
                         stars += [star]
             stars = np.array(stars)
             stars = np.unique(stars)
@@ -199,7 +199,7 @@ def extract_parameters(path, directory, stars):
 
         param_comp_list += [tuple(row)]
 
-    header = ['STAR_ID', 'teff', 'log', 'fe_h', 'vmicro', 'alpha_fe',  'c_fe',
+    header = ['STAR_ID', 'teff', 'logg', 'fe_h', 'vmicro', 'alpha_fe',  'c_fe',
               'convol', 'snr']
 
     dtypes = ['S18', np.float_, np.float_, np.float_, np.float_, np.float_,
