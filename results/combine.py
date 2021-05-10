@@ -49,7 +49,10 @@ def calculate_abundances(table, group, elem, path='.', solar_abu=None,
                                                           use_method,
                                                           method_flags)
 
-    return elem_vals - solar_abu[elem], errors, elem_counts
+    if elem not in solar_abu:
+        return elem_vals, errors, elem_counts
+    else:
+        return elem_vals - solar_abu[elem], errors, elem_counts
 
 
 def check_settings(elem, elem_line_dict, use_line, use_method, method_flags):

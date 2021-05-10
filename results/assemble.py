@@ -14,39 +14,52 @@ def read_stars(path, directory, update_starlist=False):
     '''
 
     filename = f'{directory}_stars.txt'
+    elem_filename = f'{directory}_elements.txt'
 
-    if not os.path.exists(filename) or update_starlist:
+    if not os.path.exists(filename) or not os.path.exists(elem_filename) or update_starlist:
+        stars = []
+        elements = []
+        # For each file in the target directory read the name of the file
+        # and locate the star ID used by BACCHUS (usually ELEM-STARID.abu)
+        for paths, directories, files in os.walk(f'{path}/{directory}'):
+            for file in files:
+                if '.abu' in file:
+                    file = file.split(u'-', 1)
+                    element = file[0]
+                    elements += [element]
+                    file = file[1]
+                    file = file.rstrip('.abu')
+                    file = file.split('_')
+                    # star = f'{file[0]}_{file[1]}'
+                    star = file[0]
+                    stars += [star]
+                else:
+                    pass
+        stars = np.array(stars)
+        stars = np.unique(stars)
+        elements = np.array(elements)
+        elements = np.unique(elements)
+
         with open(filename, 'w') as star_file:
-            stars = []
-            # For each file in the target directory read the name of the file
-            # and locate the star ID used by BACCHUS (usually ELEM-STARID.abu)
-            for paths, directories, files in os.walk(f'{path}/{directory}'):
-                for file in files:
-                    if file == '.DS_Store':
-                        pass
-                    else:
-                        file = file.split(u'-', 1)
-                        file = file[1]
-                        file = file.rstrip('.abu')
-                        file = file.split('_')
-                        # star = f'{file[0]}_{file[1]}'
-                        star = file[0]
-                        stars += [star]
-            stars = np.array(stars)
-            stars = np.unique(stars)
             print('# STAR_ID', file=star_file)
             for star in stars:
                 print(star, file=star_file)
+        with open(elem_filename, 'w') as elem_file:
+            print('# elements', file=elem_file)
+            for element in elements:
+                print(element, file=elem_file)
     else:
         stars = np.genfromtxt(filename, names=True,
                               dtype=None, encoding=None)['STAR_ID']
+        elements = np.genfromtxt(elem_filename, names=True, dtype=None,
+                                 encoding=None)['elements']
 
-    return stars
+    return stars, elements
 
 
 def compile_measurements(path, directory, filename, elem_line_dict=None,
-                         stars=None, overwrite=False, update_group=False,
-                         update_starlist=False):
+                         stars=None, elements=None, overwrite=False,
+                         update_group=False, update_starlist=False):
     '''
     Reads the .abu files at {path}/{directory} and compiles the line-by-line
     abundance measurements and flags in an hdf5 file with {filename}.hdf5.
@@ -60,8 +73,9 @@ def compile_measurements(path, directory, filename, elem_line_dict=None,
     if elem_line_dict is None:
         elem_line_dict = get_element_list(path)
 
-    if stars is None:
-        stars = read_stars(path, directory, update_starlist=update_starlist)
+    if stars or elements is None:
+        stars, elements = read_stars(path, directory,
+                                     update_starlist=update_starlist)
 
     # Create a new hdf5 file if it doesn't exist or overwrite is true, otherwise
     # append to it
@@ -86,8 +100,9 @@ def compile_measurements(path, directory, filename, elem_line_dict=None,
     data_array = extract_parameters(path, directory, stars)
     data = new_group.create_dataset('param', data=data_array)
 
-    for element, lines in elem_line_dict.items():
-        data_array = extract_element(path, directory, stars, element, lines)
+    for element in elements:
+        data_array = extract_element(path, directory, stars, element,
+                                     elem_line_dict[element])
         data = new_group.create_dataset(element, data=data_array)
 
 
@@ -108,7 +123,7 @@ def extract_element(path, directory, stars, element, lines):
     failed_log = open(failed_filename, 'w')
     print('# STAR_ID', file=failed_log)
     for i, star in enumerate(stars):
-        star_elem_file = f'{path}/{directory}/{element}-{star}.abu'
+        star_elem_file = f'{path}/{directory}/{star}/{element}-{star}.abu'
         row = []
         row += [star]
         # if os.path.exists(star_elem_file):
@@ -168,34 +183,41 @@ def extract_parameters(path, directory, stars):
     for i, star in enumerate(stars):
         row = []
         row += [star]
-        star_par_file = f'{path}/{directory}/{star}.par'
+        star_par_file = f'{path}/{directory}/{star}/{star}.par'
 
-        with open(star_par_file, 'r') as par_file:
-            par_lines = par_file.readlines()
-            model_lines = [
-                line for line in par_lines if line.find('set MODEL') != -1]
-            metallic_lines = [
-                line for line in par_lines if line.find('set METALLIC') != -1]
-            turbvel_lines = [
-                line for line in par_lines if line.find('set TURBVEL') != -1]
-            alpha_lines = [
-                line for line in par_lines if line.find('set alpha') != -1]
-            c_lines = [line for line in par_lines if line.find('set C') != -1]
-            convol_lines = [
-                line for line in par_lines if line.find('set convol') != -1]
-            snr_lines = [
-                line for line in par_lines if line.find('set SNR') != -1]
+        if os.path.exists(star_par_file):
+            with open(star_par_file, 'r') as par_file:
+                par_lines = par_file.readlines()
+                model_lines = [
+                    line for line in par_lines if line.find('set MODEL') != -1]
+                metallic_lines = [
+                    line for line in par_lines if line.find('set METALLIC') != -1]
+                turbvel_lines = [
+                    line for line in par_lines if line.find('set TURBVEL') != -1]
+                alpha_lines = [
+                    line for line in par_lines if line.find('set alpha') != -1]
+                c_lines = [
+                    line for line in par_lines if line.find('set C') != -1]
+                convol_lines = [
+                    line for line in par_lines if line.find('set convol') != -1]
+                snr_lines = [
+                    line for line in par_lines if line.find('set SNR') != -1]
 
-            teff = float(model_lines[-1].split()[-1].split('g')[0])
-            logg = float(model_lines[-1].split()
-                         [-1].split('g')[1].split('m')[0])
-            metallic = format_settings(metallic_lines[-1])
-            turbvel = format_settings(turbvel_lines[-1])
-            alpha = format_settings(alpha_lines[0])
-            cfe = format_settings(c_lines[0]) - asplund_2005()['C'] - metallic
-            convol = format_settings(convol_lines[-1])
-            snr = format_settings(snr_lines[-1])
-            row += [teff, logg, metallic, turbvel, alpha, cfe, convol, snr]
+                teff = float(model_lines[-1].split()[-1].split('g')[0])
+                logg = float(model_lines[-1].split()
+                             [-1].split('g')[1].split('m')[0].split('z')[0])
+                metallic = format_settings(metallic_lines[-1])
+                turbvel = format_settings(turbvel_lines[-1])
+                alpha = format_settings(alpha_lines[0])
+                cfe = format_settings(
+                    c_lines[0]) - asplund_2005()['C'] - metallic
+                convol = format_settings(convol_lines[-1])
+                snr = format_settings(snr_lines[-1])
+                row += [teff, logg, metallic, turbvel, alpha, cfe, convol, snr]
+
+        else:
+            row += [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan,
+                    np.nan]
 
         param_comp_list += [tuple(row)]
 

@@ -70,20 +70,37 @@ def write_fits(hdf5_tablename, group, elements, elements_filepath='.',
         array_format = f'{int(4*len(elem_line_dict[element]))}E'
         array_dim = f'(4, {len(elem_line_dict[element])})'
 
-        columns_list += [
-            fits.Column(name=f'{element.upper()}_FE', format='E',
-                        array=x_h - metallicity),
-            fits.Column(name=f'{element.upper()}_FE_ERR',
-                        format='E', array=x_h_err),
-            fits.Column(name=f'{element.upper()}_N_LINES',
-                        format='I', array=x_n_lines.astype(int)),
-            fits.Column(name=f'{element.upper()}_ABU_EPS',
-                        format=array_format, dim=array_dim,
-                        array=x_line_abu),
-            fits.Column(name=f'{element.upper()}_ABU_FLAGS',
-                        format=array_format, dim=array_dim,
-                        array=x_line_flags)
-        ]
+        if element not in solar_abu:
+            columns_list += [
+                fits.Column(name=f'{element.upper()}', format='E',
+                            array=x_h),
+                fits.Column(name=f'{element.upper()}_ERR',
+                            format='E', array=x_h_err),
+                fits.Column(name=f'{element.upper()}_N_LINES',
+                            format='I', array=x_n_lines.astype(int)),
+                fits.Column(name=f'{element.upper()}_ABU_EPS',
+                            format=array_format, dim=array_dim,
+                            array=x_line_abu),
+                fits.Column(name=f'{element.upper()}_ABU_FLAGS',
+                            format=array_format, dim=array_dim,
+                            array=x_line_flags)
+            ]
+
+        else:
+            columns_list += [
+                fits.Column(name=f'{element.upper()}_FE', format='E',
+                            array=x_h - metallicity),
+                fits.Column(name=f'{element.upper()}_FE_ERR',
+                            format='E', array=x_h_err),
+                fits.Column(name=f'{element.upper()}_N_LINES',
+                            format='I', array=x_n_lines.astype(int)),
+                fits.Column(name=f'{element.upper()}_ABU_EPS',
+                            format=array_format, dim=array_dim,
+                            array=x_line_abu),
+                fits.Column(name=f'{element.upper()}_ABU_FLAGS',
+                            format=array_format, dim=array_dim,
+                            array=x_line_flags)
+            ]
 
     cols = fits.ColDefs(columns_list)
 
