@@ -203,17 +203,22 @@ def extract_parameters(path, directory, stars):
                 snr_lines = [
                     line for line in par_lines if line.find('set SNR') != -1]
 
-                teff = float(model_lines[-1].split()[-1].split('g')[0])
-                logg = float(model_lines[-1].split()
-                             [-1].split('g')[1].split('m')[0].split('z')[0])
-                metallic = format_settings(metallic_lines[-1])
-                turbvel = format_settings(turbvel_lines[-1])
-                alpha = format_settings(alpha_lines[0])
-                cfe = format_settings(
-                    c_lines[0]) - asplund_2005()['C'] - metallic
-                convol = format_settings(convol_lines[-1])
-                snr = format_settings(snr_lines[-1])
-                row += [teff, logg, metallic, turbvel, alpha, cfe, convol, snr]
+                if model_lines == []:
+                    row += [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan,
+                            np.nan]
+                else:
+                    teff = float(model_lines[-1].split()[-1].split('g')[0])
+                    logg = float(model_lines[-1].split()
+                                 [-1].split('g')[1].split('m')[0].split('z')[0])
+                    metallic = format_settings(metallic_lines[-1])
+                    turbvel = format_settings(turbvel_lines[-1])
+                    alpha = format_settings(alpha_lines[0])
+                    cfe = format_settings(
+                        c_lines[0]) - asplund_2005()['C'] - metallic
+                    convol = format_settings(convol_lines[-1])
+                    snr = format_settings(snr_lines[-1])
+                    row += [teff, logg, metallic,
+                            turbvel, alpha, cfe, convol, snr]
 
         else:
             row += [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan,

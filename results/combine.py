@@ -136,12 +136,12 @@ def combine_measurements(elem_table, elem, elem_line_dict, best_lines,
             # Loop through each method if it is used and recored which stars
             # have met the input flag conditions
             for method, setting in use_method.items():
-                if setting[i] == 1:
-                    flags = np.logical_and(
-                        flags,
-                        np.in1d(elem_table[f'{elem}_{i+1}_flag_{method}'],
-                                method_flags[method][i])
-                    )
+                # if setting[i] == 1:
+                flags = np.logical_and(
+                    flags,
+                    np.in1d(elem_table[f'{elem}_{i+1}_flag_{method}'],
+                            method_flags[method][i])
+                )
 
             # Loop through each method and add its measurement
             for method, setting in use_method.items():
@@ -191,12 +191,12 @@ def combine_measurements(elem_table, elem, elem_line_dict, best_lines,
             # Loop through each method if it is used and recored which stars
             # have met the input flag conditions
             for method, setting in use_method.items():
-                if setting[i] == 1:
-                    flags = np.logical_and(
-                        flags,
-                        np.in1d(elem_table[f'{elem}_{i+1}_flag_{method}'],
-                                method_flags[method][i])
-                    )
+                # if setting[i] == 1:
+                flags = np.logical_and(
+                    flags,
+                    np.in1d(elem_table[f'{elem}_{i+1}_flag_{method}'],
+                            method_flags[method][i])
+                )
 
             # Loop through each method and add its measurement
             for method, setting in use_method.items():

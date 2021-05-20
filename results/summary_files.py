@@ -47,8 +47,12 @@ def write_fits(hdf5_tablename, group, elements, elements_filepath='.',
                        'c_fe', 'convol', 'snr']
 
     for name, fits_format, col_name in zip(param_names, param_formats, param_col_names):
-        columns_list += [fits.Column(name=name, format=fits_format,
-                                     array=hdf5_table[f'{group}/param'][col_name])]
+        if col_name == 'convol':
+            columns_list += [fits.Column(name=name, format=fits_format,
+                                         array=-hdf5_table[f'{group}/param'][col_name])]
+        else:
+            columns_list += [fits.Column(name=name, format=fits_format,
+                                         array=hdf5_table[f'{group}/param'][col_name])]
 
     # ---------------------------- Element Columns --------------------------- #
 
@@ -67,6 +71,8 @@ def write_fits(hdf5_tablename, group, elements, elements_filepath='.',
         x_line_abu, x_line_flags = combine.package_lines(
             hdf5_table, group, element, elem_line_dict=elem_line_dict)
 
+        x_lim = np.zeros(len(x_h))
+
         array_format = f'{int(4*len(elem_line_dict[element]))}E'
         array_dim = f'(4, {len(elem_line_dict[element])})'
 
@@ -76,6 +82,8 @@ def write_fits(hdf5_tablename, group, elements, elements_filepath='.',
                             array=x_h),
                 fits.Column(name=f'{element.upper()}_ERR',
                             format='E', array=x_h_err),
+                fits.Column(name=f'{element.upper()}_LIM',
+                            format='E', array=x_lim),
                 fits.Column(name=f'{element.upper()}_N_LINES',
                             format='I', array=x_n_lines.astype(int)),
                 fits.Column(name=f'{element.upper()}_ABU_EPS',
@@ -92,6 +100,8 @@ def write_fits(hdf5_tablename, group, elements, elements_filepath='.',
                             array=x_h - metallicity),
                 fits.Column(name=f'{element.upper()}_FE_ERR',
                             format='E', array=x_h_err),
+                fits.Column(name=f'{element.upper()}_FE_LIM',
+                            format='E', array=x_lim),
                 fits.Column(name=f'{element.upper()}_N_LINES',
                             format='I', array=x_n_lines.astype(int)),
                 fits.Column(name=f'{element.upper()}_ABU_EPS',
