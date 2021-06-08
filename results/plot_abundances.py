@@ -45,7 +45,8 @@ def make_lbl_plots(hdf5_tablename, group, elements, elements_filepath='.',
 def make_combined_lbl_plots(hdf5_tablename, group, elements,
                             elements_filepath='.',
                             plot_contents=['xfe', 'xteff', 'xlogg', 'hrd'],
-                            use_method_dict=None, method_flags_dict=None):
+                            use_method_dict=None, method_flags_dict=None,
+                            limit_setting=None, zero_points=None):
 
     # Load solar abundances
     solar_abu = asplund_2005()
@@ -69,7 +70,9 @@ def make_combined_lbl_plots(hdf5_tablename, group, elements,
                                         solar_abu=solar_abu,
                                         elem_line_dict=elem_line_dict,
                                         use_method=use_method_dict[element],
-                                        method_flags=method_flags_dict[element])
+                                        method_flags=method_flags_dict[element],
+                                        limit_setting=limit_setting,
+                                        zero_points=zero_points)
 
         line_by_line_combined_plots(hdf5_table, group, element, 'xfe',
                                     solar_abu=solar_abu,
@@ -78,22 +81,27 @@ def make_combined_lbl_plots(hdf5_tablename, group, elements,
                                     method_flags=method_flags_dict[element],
                                     plotcolor=True, plotcolor_param='teff',
                                     filename_addition='_teffcolor',
-                                    color_order='dsc', color_lim=[3500, 5000])
+                                    color_order='dsc', color_lim=[3500, 5000],
+                                    limit_setting=limit_setting,
+                                    zero_points=zero_points)
 
         line_by_line_combined_plots(hdf5_table, group, element, 'xfe',
                                     solar_abu=solar_abu,
                                     elem_line_dict=elem_line_dict,
                                     use_method=use_method_dict[element],
                                     method_flags=method_flags_dict[element],
+                                    zero_points=zero_points,
                                     plotcolor=True, plotcolor_param='alpha_fe',
-                                    filename_addition='_alphacolor', color_lim=[-0.1, 0.4])
+                                    filename_addition='_alphacolor', color_lim=[-0.1, 0.4],
+                                    limit_setting=limit_setting)
 
 
 def make_combined_element_plots(hdf5_tablename, group, elements,
                                 elements_filepath='.',
                                 plot_contents=['xfe', 'xteff', 'xlogg', 'hrd'],
                                 best_lines_dict=None, use_line_dict=None,
-                                use_method_dict=None, method_flags_dict=None):
+                                use_method_dict=None, method_flags_dict=None,
+                                limit_setting=None, zero_points=None):
 
     # Load solar abundances
     solar_abu = asplund_2005()
@@ -122,7 +130,9 @@ def make_combined_element_plots(hdf5_tablename, group, elements,
                                    best_lines_dict=best_lines_dict,
                                    use_line=use_line_dict[element],
                                    use_method=use_method_dict[element],
-                                   method_flags=method_flags_dict[element])
+                                   method_flags=method_flags_dict[element],
+                                   limit_setting=limit_setting,
+                                   zero_points=zero_points)
 
         line_combination_plots(hdf5_table, group, element, 'xfe',
                                solar_abu=solar_abu,
@@ -133,7 +143,9 @@ def make_combined_element_plots(hdf5_tablename, group, elements,
                                method_flags=method_flags_dict[element],
                                plotcolor=True, plotcolor_param='teff',
                                filename_addition='_teffcolor',
-                               color_order='dsc', color_lim=[3500, 5000])
+                               color_order='dsc', color_lim=[3500, 5000],
+                               limit_setting=limit_setting,
+                               zero_points=zero_points)
 
         line_combination_plots(hdf5_table, group, element, 'xfe',
                                solar_abu=solar_abu,
@@ -143,7 +155,9 @@ def make_combined_element_plots(hdf5_tablename, group, elements,
                                use_method=use_method_dict[element],
                                method_flags=method_flags_dict[element],
                                plotcolor=True, plotcolor_param='alpha_fe',
-                               filename_addition='_alphacolor', color_lim=[-0.1, 0.4])
+                               filename_addition='_alphacolor', color_lim=[-0.1, 0.4],
+                               limit_setting=limit_setting,
+                               zero_points=zero_points)
 
 
 def line_by_line_plots(table, group, elem, plot_content='xfe',
@@ -311,8 +325,9 @@ def line_by_line_plots(table, group, elem, plot_content='xfe',
 
 def line_by_line_combined_plots(table, group, elem, plot_content='xfe',
                                 solar_abu=None, elem_line_dict=None,
-                                use_method=None, method_flags=None, path='.',
-                                plotcolor=False, plotcolor_param='teff',
+                                use_method=None, method_flags=None,
+                                limit_setting=None, zero_points=None,
+                                path='.', plotcolor=False, plotcolor_param='teff',
                                 filename_addition='', color_order='asc',
                                 color_lim=[None, None]):
 
@@ -369,13 +384,15 @@ def line_by_line_combined_plots(table, group, elem, plot_content='xfe',
         use_line = [0] * nlines
         use_line[i] = 1
 
-        elem_abu, errors, elem_counts = calculate_abundances(table, group, elem,
-                                                             path='.',
-                                                             solar_abu=solar_abu,
-                                                             elem_line_dict=elem_line_dict,
-                                                             use_line=use_line,
-                                                             use_method=use_method,
-                                                             method_flags=method_flags)
+        elem_abu, errors, elem_counts, elem_limits = calculate_abundances(table, group, elem,
+                                                                          path='.',
+                                                                          solar_abu=solar_abu,
+                                                                          elem_line_dict=elem_line_dict,
+                                                                          use_line=use_line,
+                                                                          use_method=use_method,
+                                                                          method_flags=method_flags,
+                                                                          limit_setting=limit_setting,
+                                                                          zero_points=zero_points)
 
         if plot_content == 'hrd':
             xlim = [3000, 6000]
@@ -492,7 +509,8 @@ def line_by_line_combined_plots(table, group, elem, plot_content='xfe',
 def line_combination_plots(table, group, elem, plot_content='xfe',
                            solar_abu=None, elem_line_dict=None, best_lines_dict=None,
                            use_line=None, use_method=None, method_flags=None,
-                           path='.', plotcolor=False, plotcolor_param='teff',
+                           limit_setting=None, zero_points=None, path='.',
+                           plotcolor=False, plotcolor_param='teff',
                            filename_addition='', color_order='asc',
                            color_lim=[None, None]):
 
@@ -517,14 +535,16 @@ def line_combination_plots(table, group, elem, plot_content='xfe',
 
     plot_filename = f'{elem}_{plot_content}{filename_addition}.png'
 
-    elem_abu, errors, elem_counts = calculate_abundances(table, group, elem,
-                                                         path='.',
-                                                         solar_abu=solar_abu,
-                                                         elem_line_dict=elem_line_dict,
-                                                         best_lines=best_lines_dict,
-                                                         use_line=use_line,
-                                                         use_method=use_method,
-                                                         method_flags=method_flags)
+    elem_abu, errors, elem_counts, elem_limits = calculate_abundances(table, group, elem,
+                                                                      path='.',
+                                                                      solar_abu=solar_abu,
+                                                                      elem_line_dict=elem_line_dict,
+                                                                      best_lines=best_lines_dict,
+                                                                      use_line=use_line,
+                                                                      use_method=use_method,
+                                                                      method_flags=method_flags,
+                                                                      limit_setting=limit_setting,
+                                                                      zero_points=zero_points)
 
     if plot_content == 'hrd':
         xlim = [3000, 6000]

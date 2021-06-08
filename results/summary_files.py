@@ -8,7 +8,8 @@ from bacchus_tools.read_element_linelist import get_element_list
 
 def write_fits(hdf5_tablename, group, elements, elements_filepath='.',
                output_filename=None, best_lines_dict=None, use_line_dict=None,
-               use_method_dict=None, method_flags_dict=None, overwrite=False):
+               use_method_dict=None, method_flags_dict=None, limit_setting=None,
+               overwrite=False):
 
     # Load solar abundances
     solar_abu = asplund_2005()
@@ -59,19 +60,21 @@ def write_fits(hdf5_tablename, group, elements, elements_filepath='.',
     metallicity = hdf5_table[f'{group}/param']['fe_h']
 
     for element in elements:
-        x_h, x_h_err, x_n_lines = combine.calculate_abundances(hdf5_table,
-                                                               group, element,
-                                                               solar_abu=solar_abu,
-                                                               elem_line_dict=elem_line_dict,
-                                                               best_lines=best_lines_dict,
-                                                               use_line=use_line_dict[element],
-                                                               use_method=use_method_dict[element],
-                                                               method_flags=method_flags_dict[element])
+        x_h, x_h_err, x_n_lines, x_h_lim = combine.calculate_abundances(hdf5_table,
+                                                                        group, element,
+                                                                        solar_abu=solar_abu,
+                                                                        elem_line_dict=elem_line_dict,
+                                                                        best_lines=best_lines_dict,
+                                                                        use_line=use_line_dict[element],
+                                                                        use_method=use_method_dict[element],
+                                                                        method_flags=method_flags_dict[element],
+                                                                        limit_setting=limit_setting,
+                                                                        zero_points=zero_points)
 
         x_line_abu, x_line_flags = combine.package_lines(
             hdf5_table, group, element, elem_line_dict=elem_line_dict)
 
-        x_lim = np.zeros(len(x_h))
+        # x_h_lim = np.zeros(len(x_h))
 
         array_format = f'{int(4*len(elem_line_dict[element]))}E'
         array_dim = f'(4, {len(elem_line_dict[element])})'
@@ -83,7 +86,7 @@ def write_fits(hdf5_tablename, group, elements, elements_filepath='.',
                 fits.Column(name=f'{element.upper()}_ERR',
                             format='E', array=x_h_err),
                 fits.Column(name=f'{element.upper()}_LIM',
-                            format='E', array=x_lim),
+                            format='E', array=x_h_lim),
                 fits.Column(name=f'{element.upper()}_N_LINES',
                             format='I', array=x_n_lines.astype(int)),
                 fits.Column(name=f'{element.upper()}_ABU_EPS',
@@ -101,7 +104,7 @@ def write_fits(hdf5_tablename, group, elements, elements_filepath='.',
                 fits.Column(name=f'{element.upper()}_FE_ERR',
                             format='E', array=x_h_err),
                 fits.Column(name=f'{element.upper()}_FE_LIM',
-                            format='E', array=x_lim),
+                            format='E', array=x_h_lim - metallicity),
                 fits.Column(name=f'{element.upper()}_N_LINES',
                             format='I', array=x_n_lines.astype(int)),
                 fits.Column(name=f'{element.upper()}_ABU_EPS',

@@ -22,7 +22,8 @@ from bacchus_tools.read_element_linelist import get_element_list
 
 def calculate_abundances(table, group, elem, path='.', solar_abu=None,
                          elem_line_dict=None, best_lines=None, use_line=None,
-                         use_method=None, method_flags=None):
+                         use_method=None, method_flags=None, limit_setting=None,
+                         zero_points=None):
 
     # Load solar abundances if they aren't supplied
     if solar_abu is None:
@@ -36,23 +37,29 @@ def calculate_abundances(table, group, elem, path='.', solar_abu=None,
     if best_lines is None:
         best_lines = {elem: None}
 
+    if limit_setting is None or elem not in limit_setting:
+        limit_setting = {
+            elem: {'source': 'bacchus_limit', 'default_limit': 'limit_int'}}
+
+    if zero_points is None or elem not in zero_points:
+        zero_points = {elem: None}
+
     # Check the provided line, method, and flag settings
     use_line, use_method, method_flags = check_settings(elem, elem_line_dict,
                                                         use_line, use_method,
                                                         method_flags)
 
-    elem_table = table[f'{group}/{elem}']
-
-    elem_vals, errors, elem_counts = combine_measurements(elem_table, elem,
-                                                          elem_line_dict,
-                                                          best_lines, use_line,
-                                                          use_method,
-                                                          method_flags)
+    elem_vals, errors, elem_counts, elem_limits = combine_measurements(table, group, elem,
+                                                                       elem_line_dict,
+                                                                       best_lines, use_line,
+                                                                       use_method,
+                                                                       method_flags, limit_setting,
+                                                                       zero_points)
 
     if elem not in solar_abu:
-        return elem_vals, errors, elem_counts
+        return elem_vals, errors, elem_counts, elem_limits
     else:
-        return elem_vals - solar_abu[elem], errors, elem_counts
+        return elem_vals - solar_abu[elem], errors, elem_counts, elem_limits - solar_abu[elem]
 
 
 def check_settings(elem, elem_line_dict, use_line, use_method, method_flags):
@@ -106,8 +113,9 @@ def check_settings(elem, elem_line_dict, use_line, use_method, method_flags):
     return use_line, use_method, method_flags
 
 
-def combine_measurements(elem_table, elem, elem_line_dict, best_lines,
-                         use_line, use_method, method_flags):
+def combine_measurements(table, group, elem, elem_line_dict, best_lines,
+                         use_line, use_method, method_flags, limit_setting,
+                         zero_points):
     '''
     A function to average line-by-line abundances from BACCHUS (converted to a
     compiled hdf5 table) with an arbitrary choice of lines, methods and flags.
@@ -118,8 +126,12 @@ def combine_measurements(elem_table, elem, elem_line_dict, best_lines,
 
     # -------------------- Calculate average abundances ---------------------- #
 
+    elem_table = table[f'{group}/{elem}']
+    param_table = table[f'{group}/param']
+
     elem_vals = np.zeros(len(elem_table))
     elem_counts = np.zeros(len(elem_table))
+    elem_limits = np.full(len(elem_table), np.nan)
 
     # Keep track of which stars have the best lines measured
     best_line_not_meas = np.zeros(len(elem_table), dtype=bool)
@@ -150,14 +162,31 @@ def combine_measurements(elem_table, elem, elem_line_dict, best_lines,
                     line_abu[flags] += elem_table[column][flags]
                     line_count += flags
 
-            climit = f'{elem}_{i+1}_limit_int'
-            line_measured = np.logical_and(line_abu > elem_table[climit],
+            if limit_setting[elem]['source'] == 'bacchus_limit':
+                climit = f"{elem}_{i+1}_{limit_setting[elem]['default_limit']}"
+                line_limit = elem_table[climit]
+            elif limit_setting[elem]['source'] == 'line_by_line':
+                line_settings = limit_setting[elem][elem_line_dict[elem][i]]
+                climit = f"{elem}_{i+1}_{line_settings['default_limit']}"
+                calc_limit = line_settings['function'](
+                    param_table, **line_settings['func_param'])
+                # line_limit = np.fmax(elem_table[climit], calc_limit)
+                line_limit = calc_limit
+
+            if zero_points[elem] is None:
+                line_zero_point = 0.
+            elif zero_points[elem]['source'] == 'line_by_line':
+                line_zero_point = zero_points[elem]['values'][elem_line_dict[elem][i]]
+
+            elem_limits = np.fmin(elem_limits, line_limit)
+
+            line_measured = np.logical_and(line_abu / line_count > line_limit,
                                            line_count != 0)
 
             # Average the method abundances and add one to the count if this
             # line is measured
-            elem_vals[line_measured] += line_abu[line_measured] / \
-                line_count[line_measured]
+            elem_vals[line_measured] += (line_abu[line_measured] /
+                                         line_count[line_measured]) - line_zero_point
             elem_counts += line_measured
 
             # If there are any beest lines, check that they are measured
@@ -172,6 +201,7 @@ def combine_measurements(elem_table, elem, elem_line_dict, best_lines,
         elem_counts[elem_counts != 0]
     elem_vals[elem_counts == 0] = np.nan
     elem_vals[best_line_not_meas] = np.nan
+    elem_limits[np.logical_not(np.isnan(elem_vals))] = np.nan
 
     # ----------------------- Calculate uncertainties ------------------------ #
 
@@ -198,6 +228,11 @@ def combine_measurements(elem_table, elem, elem_line_dict, best_lines,
                             method_flags[method][i])
                 )
 
+            if zero_points[elem] is None:
+                line_zero_point = 0.
+            elif zero_points[elem]['source'] == 'line_by_line':
+                line_zero_point = zero_points[elem]['values'][elem_line_dict[elem][i]]
+
             # Loop through each method and add its measurement
             for method, setting in use_method.items():
                 if setting[i] == 1:
@@ -205,10 +240,20 @@ def combine_measurements(elem_table, elem, elem_line_dict, best_lines,
                     line_abu[flags] += elem_table[column][flags]
                     line_count += flags
                     line_error[flags] += (elem_table[column]
-                                          [flags] - elem_vals[flags])**2.
+                                          [flags] - elem_vals[flags] - line_zero_point)**2.
 
-            climit = f'{elem}_{i+1}_limit_int'
-            line_measured = np.logical_and(line_abu > elem_table[climit],
+            if limit_setting[elem]['source'] == 'bacchus_limit':
+                climit = f"{elem}_{i+1}_{limit_setting[elem]['default_limit']}"
+                line_limit = elem_table[climit]
+            elif limit_setting[elem]['source'] == 'line_by_line':
+                line_settings = limit_setting[elem][elem_line_dict[elem][i]]
+                climit = f"{elem}_{i+1}_{line_settings['default_limit']}"
+                calc_limit = line_settings['function'](
+                    param_table, **line_settings['func_param'])
+                # line_limit = np.fmax(elem_table[climit], calc_limit)
+                line_limit = calc_limit
+
+            line_measured = np.logical_and(line_abu / line_count > line_limit,
                                            line_count != 0)
 
             errors[line_measured] += line_error[line_measured]
@@ -224,7 +269,7 @@ def combine_measurements(elem_table, elem, elem_line_dict, best_lines,
 
     errors[np.isnan(elem_vals)] = np.nan
 
-    return elem_vals, errors, elem_counts
+    return elem_vals, errors, elem_counts, elem_limits
 
 
 def package_lines(table, group, elem, path='.', elem_line_dict=None):
