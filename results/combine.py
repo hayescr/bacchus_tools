@@ -22,8 +22,8 @@ from bacchus_tools.read_element_linelist import get_element_list
 
 def calculate_abundances(table, group, elem, path='.', solar_abu=None,
                          elem_line_dict=None, best_lines=None, use_line=None,
-                         use_method=None, method_flags=None, limit_setting=None,
-                         zero_points=None):
+                         use_method=None, method_flags=None, bc_flags=None,
+                         limit_setting=None, zero_points=None):
 
     # Load solar abundances if they aren't supplied
     if solar_abu is None:
@@ -45,15 +45,16 @@ def calculate_abundances(table, group, elem, path='.', solar_abu=None,
         zero_points = {elem: None}
 
     # Check the provided line, method, and flag settings
-    use_line, use_method, method_flags = check_settings(elem, elem_line_dict,
-                                                        use_line, use_method,
-                                                        method_flags)
+    use_line, use_method, method_flags, bc_flags = check_settings(elem, elem_line_dict,
+                                                                  use_line, use_method,
+                                                                  method_flags, bc_flags)
 
     elem_vals, errors, elem_counts, elem_limits = combine_measurements(table, group, elem,
                                                                        elem_line_dict,
                                                                        best_lines, use_line,
                                                                        use_method,
-                                                                       method_flags, limit_setting,
+                                                                       method_flags, bc_flags,
+                                                                       limit_setting,
                                                                        zero_points)
 
     if elem not in solar_abu:
@@ -62,7 +63,7 @@ def calculate_abundances(table, group, elem, path='.', solar_abu=None,
         return elem_vals - solar_abu[elem], errors, elem_counts, elem_limits - solar_abu[elem]
 
 
-def check_settings(elem, elem_line_dict, use_line, use_method, method_flags):
+def check_settings(elem, elem_line_dict, use_line, use_method, method_flags, bc_flags):
     '''
     Check the line use, method use and flag settings to confirm that they
     have the same length as the number of lines.  Will set missing methods on
@@ -72,7 +73,9 @@ def check_settings(elem, elem_line_dict, use_line, use_method, method_flags):
     '''
 
     # Set up the line, method and flag settings if they aren't supplied
-    method_names = ['syn', 'eqw', 'int', 'chi2']
+    method_names = ['syn', 'eqw', 'int', 'chi2', 'wln']
+
+    bc_names = ['blend', 'cont']
 
     # Use all lines if no specific lines are specified.  Otherwise use the
     # specified lines (make sure there are enough) or apply a single value for
@@ -89,6 +92,8 @@ def check_settings(elem, elem_line_dict, use_line, use_method, method_flags):
         use_method = {}
     if method_flags is None:
         method_flags = {}
+    if bc_flags is None:
+        bc_flags = {}
 
     # Check to make sure that settings are provided for which methods to use
     # and what flags to accept.  If a single value is provided for a given
@@ -110,12 +115,19 @@ def check_settings(elem, elem_line_dict, use_line, use_method, method_flags):
             assert len(method_flags[method]) == len(
                 elem_line_dict[elem]), f'the number of settings for method_flags["{method}"] should be the same length as the number of lines ({len(elem_line_dict[elem])}) for this element ({elem})'
 
-    return use_line, use_method, method_flags
+    for bc in bc_names:
+        if bc not in bc_flags:
+            bc_flags[bc] = [[0, 1, 9]] * len(elem_line_dict[elem])
+        else:
+            assert len(bc_flags[bc]) == len(
+                elem_line_dict[elem]), f'the number of settings for bc_flags["{bc}"] should be the same length as the number of lines ({len(elem_line_dict[elem])}) for this element ({elem})'
+
+    return use_line, use_method, method_flags, bc_flags
 
 
 def combine_measurements(table, group, elem, elem_line_dict, best_lines,
-                         use_line, use_method, method_flags, limit_setting,
-                         zero_points):
+                         use_line, use_method, method_flags, bc_flags,
+                         limit_setting, zero_points):
     '''
     A function to average line-by-line abundances from BACCHUS (converted to a
     compiled hdf5 table) with an arbitrary choice of lines, methods and flags.
@@ -131,6 +143,7 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
 
     elem_vals = np.zeros(len(elem_table))
     elem_counts = np.zeros(len(elem_table))
+    elem_limit_counts = np.zeros(len(elem_table))
     elem_limits = np.full(len(elem_table), np.nan)
 
     # Keep track of which stars have the best lines measured
@@ -153,6 +166,13 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
                     flags,
                     np.in1d(elem_table[f'{elem}_{i+1}_flag_{method}'],
                             method_flags[method][i])
+                )
+
+            for bc, settings in bc_flags.items():
+                flags = np.logical_and(
+                    flags,
+                    np.in1d(elem_table[f'{elem}_{i+1}_flag_{bc}'],
+                            settings[i])
                 )
 
             # Loop through each method and add its measurement
@@ -183,11 +203,16 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
             line_measured = np.logical_and(line_abu / line_count > line_limit,
                                            line_count != 0)
 
+            limit_measured = np.logical_and(
+                line_abu / line_count <= line_limit, line_count != 0)
+
             # Average the method abundances and add one to the count if this
             # line is measured
             elem_vals[line_measured] += (line_abu[line_measured] /
                                          line_count[line_measured]) - line_zero_point
             elem_counts += line_measured
+
+            elem_limit_counts += limit_measured
 
             # If there are any beest lines, check that they are measured
             if best_lines[elem] is None:
@@ -201,7 +226,8 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
         elem_counts[elem_counts != 0]
     elem_vals[elem_counts == 0] = np.nan
     elem_vals[best_line_not_meas] = np.nan
-    elem_limits[np.logical_not(np.isnan(elem_vals))] = np.nan
+    elem_limits[np.logical_or(np.logical_not(
+        np.isnan(elem_vals)), elem_limit_counts == 0)] = np.nan
 
     # ----------------------- Calculate uncertainties ------------------------ #
 
@@ -285,10 +311,10 @@ def package_lines(table, group, elem, path='.', elem_line_dict=None):
 
     elem_table = table[f'{group}/{elem}']
 
-    methods = ['syn', 'eqw', 'int', 'chi2']
+    methods = ['syn', 'eqw', 'int', 'chi2', 'wln']
 
-    abu_array = np.zeros((len(elem_table), len(elem_line_dict[elem]), 4))
-    flag_array = np.zeros((len(elem_table), len(elem_line_dict[elem]), 4))
+    abu_array = np.zeros((len(elem_table), len(elem_line_dict[elem]), 5))
+    flag_array = np.zeros((len(elem_table), len(elem_line_dict[elem]), 5))
 
     for j, method in enumerate(methods):
         for i in range(len(elem_line_dict[elem])):

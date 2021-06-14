@@ -64,7 +64,7 @@ def get_element_list(path):
             # list of lines to lines_list
             temp_line_list.sort()
             temp_line_list = list(
-                np.round(np.unique(np.array(temp_line_list)), 1))
+                np.round(np.unique(np.array(temp_line_list)), 3))
             lines_list += [temp_line_list]
 
     # Make a dictionary of each element as keys with the list of its lines

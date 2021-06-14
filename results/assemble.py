@@ -32,6 +32,7 @@ def read_stars(path, directory, update_starlist=False):
                     file = file.split('_')
                     # star = f'{file[0]}_{file[1]}'
                     star = file[0]
+                    star = star.rstrip('tmp')
                     stars += [star]
                 else:
                     pass
@@ -106,13 +107,33 @@ def compile_measurements(path, directory, filename, elem_line_dict=None,
         data = new_group.create_dataset(element, data=data_array)
 
 
+def read_flag_file(filepath):
+    if os.path.exists(filepath):
+        with open(filepath, 'r') as file:
+            data = np.array([[file_line.split()[0], float(
+                file_line.split()[1]), int(file_line.split()[2])] for file_line in file if len(file_line.split()) >= 3])
+    else:
+        data = np.array([[None, None, None]])
+
+    return data
+
+
+def flag_file_value(data, element, line):
+    if np.any(data[:, 1].astype(np.float_) == line) and data[data[:, 1].astype(np.float_) == line][0, 0] == element:
+        flag_value = int(data[data[:, 1].astype(np.float_) == line][0, 2])
+    else:
+        flag_value = 9
+
+    return flag_value
+
+
 def extract_element(path, directory, stars, element, lines):
 
     # We need are using a fixed format, so if a star is missing a line for an element
     # we need to fill it with a null row which is setup here for ease later
     nan_row = [np.nan, np.nan, np.nan, 9, np.nan, 9,
-               np.nan, 9, np.nan, 9, np.nan, np.nan,
-               np.nan, np.nan, np.nan, np.nan]
+               np.nan, 9, np.nan, 9, np.nan, 9, np.nan, np.nan,
+               np.nan, np.nan, np.nan, np.nan, 9, 9]
 
     element_comp_list = []
     fail_dir = 'failure_log'
@@ -124,10 +145,16 @@ def extract_element(path, directory, stars, element, lines):
     print('# STAR_ID', file=failed_log)
     for i, star in enumerate(stars):
         star_elem_file = f'{path}/{directory}/{star}/{element}-{star}.abu'
+        star_blend_file = f'{path}/{directory}/{star}/blend.flags'
+        star_cont_file = f'{path}/{directory}/{star}/cont.flags'
+
+        blend_data = read_flag_file(star_blend_file)
+        cont_data = read_flag_file(star_cont_file)
+
         row = []
         row += [star]
         # if os.path.exists(star_elem_file):
-        try:
+        if os.path.exists(star_elem_file):
             data = np.genfromtxt(star_elem_file, names=True,
                                  dtype=None, encoding=None, skip_header=1)
             col_id = 1
@@ -135,9 +162,14 @@ def extract_element(path, directory, stars, element, lines):
                 if np.any(data['lambda'] == line):
                         # print(np.array(data[data['lambda'] == line][0]))
                     row += [*data[data['lambda'] == line][0]]
+
+                    row += [flag_file_value(blend_data, element, line)]
+                    row += [flag_file_value(cont_data, element, line)]
+
                 else:
                     row += nan_row
-        except:
+
+        else:
             print(star, file=failed_log)
             row += nan_row * len(lines)
         # else:
@@ -146,12 +178,14 @@ def extract_element(path, directory, stars, element, lines):
         element_comp_list += [tuple(row)]
 
     header = ['lambda', 'eqw_obs', 'syn', 'flag_syn', 'eqw',  'flag_eqw', 'int',
-              'flag_int', 'chi2', 'flag_chi2', 'chi2_val', 'SNR', 'rvcor',
-              'limit_syn', 'limit_eqw', 'limit_int']
+              'flag_int', 'chi2', 'flag_chi2', 'wln', 'flag_wln', 'chi2_val',
+              'SNR', 'rvcor', 'limit_syn', 'limit_eqw', 'limit_int', 'flag_blend',
+              'flag_cont']
 
     dtypes = [np.float_, np.float, np.float, np.int8, np.float, np.int8,
-              np.float_, np.int8, np.float_, np.int8, np.float_, np.float_,
-              np.float_, np.float_, np.float_, np.float_]
+              np.float_, np.int8, np.float_, np.int8,  np.float_, np.int8,
+              np.float_, np.float_, np.float_, np.float_, np.float_, np.float_,
+              np.int8, np.int8]
 
     new_header = []
     new_header += ['STAR_ID']
@@ -184,6 +218,7 @@ def extract_parameters(path, directory, stars):
         row = []
         row += [star]
         star_par_file = f'{path}/{directory}/{star}/{star}.par'
+        star_cno_file = f'{path}/{directory}/{star}/updatedCNO'
 
         if os.path.exists(star_par_file):
             with open(star_par_file, 'r') as par_file:
@@ -224,13 +259,28 @@ def extract_parameters(path, directory, stars):
             row += [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan,
                     np.nan]
 
+        if os.path.exists(star_par_file):
+            with open(star_cno_file, 'r') as cno_file:
+                cno_line = cno_file.readlines()[0]
+                cno_items = cno_line.strip().split()
+                cno_row_addition = []
+                for cno_elem in ['C', 'N', 'O']:
+                    if f'updated{cno_elem}=' in cno_items:
+                        cno_row_addition += [
+                            int(cno_items[cno_items.index(f'updated{cno_elem}=') + 1])]
+                    else:
+                        cno_row_addition += [9]
+                row += cno_row_addition
+        else:
+            row += [9, 9, 9]
+
         param_comp_list += [tuple(row)]
 
     header = ['STAR_ID', 'teff', 'logg', 'fe_h', 'vmicro', 'alpha_fe',  'c_fe',
-              'convol', 'snr']
+              'convol', 'snr', 'c_iter', 'n_iter', 'o_iter']
 
     dtypes = ['S18', np.float_, np.float_, np.float_, np.float_, np.float_,
-              np.float_, np.float_, np.float_]
+              np.float_, np.float_, np.float_, np.int8, np.int8, np.int8]
 
     input_dtype = [(value) for value in zip(header, dtypes)]
     data_array = np.array(param_comp_list, dtype=input_dtype)

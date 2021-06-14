@@ -8,8 +8,8 @@ from bacchus_tools.read_element_linelist import get_element_list
 
 def write_fits(hdf5_tablename, group, elements, elements_filepath='.',
                output_filename=None, best_lines_dict=None, use_line_dict=None,
-               use_method_dict=None, method_flags_dict=None, limit_setting=None,
-               overwrite=False):
+               use_method_dict=None, method_flags_dict=None, bc_flags_dict=None,
+               limit_setting=None, zero_points=None, overwrite=False):
 
     # Load solar abundances
     solar_abu = asplund_2005()
@@ -27,6 +27,9 @@ def write_fits(hdf5_tablename, group, elements, elements_filepath='.',
     if method_flags_dict is None:
         method_flags_dict = {element: None for element in elements}
 
+    if bc_flags_dict is None:
+        bc_flags_dict = {element: None for element in elements}
+
     # Open the hdf5 table of assembled BACCHUS outputs
     hdf5_tablename = hdf5_tablename.replace('.hdf5', '')
     hdf5_table = h5py.File(f'{hdf5_tablename}.hdf5', 'r')
@@ -40,17 +43,22 @@ def write_fits(hdf5_tablename, group, elements, elements_filepath='.',
 
     # -------------------------- Paramater Columns --------------------------- #
     param_names = ['STAR_ID', 'TEFF', 'LOGG', 'FE_H', 'VMICRO',
-                   'ALPHA_FE_MODEL', 'C_FE_MODEL', 'CONVOL', 'SNR']
+                   'ALPHA_FE_MODEL', 'C_FE_MODEL', 'CONVOL', 'SNR', 'C_ITER',
+                   'N_ITER', 'O_ITER']
 
-    param_formats = ['A18', 'E', 'E', 'E', 'E', 'E',  'E', 'E', 'E']
+    param_formats = ['A18', 'E', 'E', 'E', 'E',
+                     'E',  'E', 'E', 'E', 'I', 'I', 'I']
 
     param_col_names = ['STAR_ID', 'teff', 'logg', 'fe_h', 'vmicro', 'alpha_fe',
-                       'c_fe', 'convol', 'snr']
+                       'c_fe', 'convol', 'snr', 'c_iter', 'n_iter', 'o_iter']
 
     for name, fits_format, col_name in zip(param_names, param_formats, param_col_names):
         if col_name == 'convol':
             columns_list += [fits.Column(name=name, format=fits_format,
                                          array=-hdf5_table[f'{group}/param'][col_name])]
+        elif col_name in ['c_iter', 'n_iter', 'o_iter']:
+            columns_list += [fits.Column(name=name, format=fits_format,
+                                         array=hdf5_table[f'{group}/param'][col_name])]
         else:
             columns_list += [fits.Column(name=name, format=fits_format,
                                          array=hdf5_table[f'{group}/param'][col_name])]
@@ -68,6 +76,7 @@ def write_fits(hdf5_tablename, group, elements, elements_filepath='.',
                                                                         use_line=use_line_dict[element],
                                                                         use_method=use_method_dict[element],
                                                                         method_flags=method_flags_dict[element],
+                                                                        bc_flags=bc_flags_dict[element],
                                                                         limit_setting=limit_setting,
                                                                         zero_points=zero_points)
 
@@ -76,8 +85,8 @@ def write_fits(hdf5_tablename, group, elements, elements_filepath='.',
 
         # x_h_lim = np.zeros(len(x_h))
 
-        array_format = f'{int(4*len(elem_line_dict[element]))}E'
-        array_dim = f'(4, {len(elem_line_dict[element])})'
+        array_format = f'{int(5*len(elem_line_dict[element]))}E'
+        array_dim = f'(5, {len(elem_line_dict[element])})'
 
         if element not in solar_abu:
             columns_list += [
