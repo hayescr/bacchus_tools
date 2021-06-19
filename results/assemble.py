@@ -190,7 +190,7 @@ def extract_element(path, directory, stars, element, lines):
     new_header = []
     new_header += ['STAR_ID']
     new_dtypes = []
-    new_dtypes += ['S18']
+    new_dtypes += ['S19']
 
     for i in range(len(lines)):
         for label, dtype in zip(header, dtypes):
@@ -279,7 +279,7 @@ def extract_parameters(path, directory, stars):
     header = ['STAR_ID', 'teff', 'logg', 'fe_h', 'vmicro', 'alpha_fe',  'c_fe',
               'convol', 'snr', 'c_iter', 'n_iter', 'o_iter']
 
-    dtypes = ['S18', np.float_, np.float_, np.float_, np.float_, np.float_,
+    dtypes = ['S19', np.float_, np.float_, np.float_, np.float_, np.float_,
               np.float_, np.float_, np.float_, np.int8, np.int8, np.int8]
 
     input_dtype = [(value) for value in zip(header, dtypes)]

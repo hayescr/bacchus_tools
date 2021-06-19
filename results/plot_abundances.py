@@ -125,7 +125,8 @@ def make_combined_element_plots(hdf5_tablename, group, elements,
                                 best_lines_dict=None, use_line_dict=None,
                                 use_method_dict=None, method_flags_dict=None,
                                 bc_flags_dict=None,
-                                limit_setting=None, zero_points=None):
+                                limit_setting=None, zero_points=None,
+                                convol_limit=None, updatedo_flags_dict=None):
 
     # Load solar abundances
     solar_abu = asplund_2005()
@@ -145,6 +146,9 @@ def make_combined_element_plots(hdf5_tablename, group, elements,
     if bc_flags_dict is None:
         bc_flags_dict = {element: None for element in elements}
 
+    if updatedo_flags_dict is None:
+        updatedo_flags_dict = {element: None for element in elements}
+
     # Open the hdf5 table of assembled BACCHUS outputs
     hdf5_tablename = hdf5_tablename.replace('.hdf5', '')
     hdf5_table = h5py.File(f'{hdf5_tablename}.hdf5', 'r')
@@ -160,7 +164,9 @@ def make_combined_element_plots(hdf5_tablename, group, elements,
                                    method_flags=method_flags_dict[element],
                                    bc_flags=bc_flags_dict[element],
                                    limit_setting=limit_setting,
-                                   zero_points=zero_points)
+                                   zero_points=zero_points,
+                                   convol_limit=convol_limit,
+                                   updatedo_flags=updatedo_flags_dict[element])
 
         line_combination_plots(hdf5_table, group, element, 'xfe',
                                solar_abu=solar_abu,
@@ -174,7 +180,9 @@ def make_combined_element_plots(hdf5_tablename, group, elements,
                                filename_addition='_teffcolor',
                                color_order='dsc', color_lim=[3500, 5000],
                                limit_setting=limit_setting,
-                               zero_points=zero_points)
+                               zero_points=zero_points,
+                               convol_limit=convol_limit,
+                               updatedo_flags=updatedo_flags_dict[element])
 
         line_combination_plots(hdf5_table, group, element, 'xfe',
                                solar_abu=solar_abu,
@@ -188,7 +196,9 @@ def make_combined_element_plots(hdf5_tablename, group, elements,
                                filename_addition='_loggcolor',
                                color_order='dsc', color_lim=[0, 4],
                                limit_setting=limit_setting,
-                               zero_points=zero_points)
+                               zero_points=zero_points,
+                               convol_limit=convol_limit,
+                               updatedo_flags=updatedo_flags_dict[element])
 
         line_combination_plots(hdf5_table, group, element, 'xfe',
                                solar_abu=solar_abu,
@@ -201,7 +211,24 @@ def make_combined_element_plots(hdf5_tablename, group, elements,
                                plotcolor=True, plotcolor_param='alpha_fe',
                                filename_addition='_alphacolor', color_lim=[-0.1, 0.4],
                                limit_setting=limit_setting,
-                               zero_points=zero_points)
+                               zero_points=zero_points,
+                               convol_limit=convol_limit,
+                               updatedo_flags=updatedo_flags_dict[element])
+
+        line_combination_plots(hdf5_table, group, element, 'xfe',
+                               solar_abu=solar_abu,
+                               elem_line_dict=elem_line_dict,
+                               best_lines_dict=best_lines_dict,
+                               use_line=use_line_dict[element],
+                               use_method=use_method_dict[element],
+                               method_flags=method_flags_dict[element],
+                               bc_flags=bc_flags_dict[element],
+                               plotcolor=True, plotcolor_param='convol',
+                               filename_addition='_convolcolor', color_lim=[-20, -10],
+                               limit_setting=limit_setting,
+                               zero_points=zero_points,
+                               convol_limit=convol_limit,
+                               updatedo_flags=updatedo_flags_dict[element])
 
 
 def line_by_line_plots(table, group, elem, plot_content='xfe',
@@ -566,7 +593,8 @@ def line_combination_plots(table, group, elem, plot_content='xfe',
                            solar_abu=None, elem_line_dict=None, best_lines_dict=None,
                            use_line=None, use_method=None, method_flags=None,
                            bc_flags=None,
-                           limit_setting=None, zero_points=None, path='.',
+                           limit_setting=None, zero_points=None,
+                           convol_limit=None, updatedo_flags=None, path='.',
                            plotcolor=False, plotcolor_param='teff',
                            filename_addition='', color_order='asc',
                            color_lim=[None, None]):
@@ -602,7 +630,9 @@ def line_combination_plots(table, group, elem, plot_content='xfe',
                                                                       method_flags=method_flags,
                                                                       bc_flags=bc_flags,
                                                                       limit_setting=limit_setting,
-                                                                      zero_points=zero_points)
+                                                                      zero_points=zero_points,
+                                                                      convol_limit=convol_limit,
+                                                                      updatedo_flags=updatedo_flags)
 
     if plot_content == 'hrd':
         xlim = [3000, 6000]

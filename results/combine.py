@@ -23,7 +23,8 @@ from bacchus_tools.read_element_linelist import get_element_list
 def calculate_abundances(table, group, elem, path='.', solar_abu=None,
                          elem_line_dict=None, best_lines=None, use_line=None,
                          use_method=None, method_flags=None, bc_flags=None,
-                         limit_setting=None, zero_points=None):
+                         limit_setting=None, zero_points=None, convol_limit=None,
+                         updatedo_flags=None):
 
     # Load solar abundances if they aren't supplied
     if solar_abu is None:
@@ -44,6 +45,13 @@ def calculate_abundances(table, group, elem, path='.', solar_abu=None,
     if zero_points is None or elem not in zero_points:
         zero_points = {elem: None}
 
+    if convol_limit is None:
+        def convol_limit(param_table):
+            return -9999
+
+    if updatedo_flags is None:
+        updatedo_flags = np.full(len(table[f'{group}/param']), 2)
+
     # Check the provided line, method, and flag settings
     use_line, use_method, method_flags, bc_flags = check_settings(elem, elem_line_dict,
                                                                   use_line, use_method,
@@ -55,7 +63,9 @@ def calculate_abundances(table, group, elem, path='.', solar_abu=None,
                                                                        use_method,
                                                                        method_flags, bc_flags,
                                                                        limit_setting,
-                                                                       zero_points)
+                                                                       zero_points,
+                                                                       convol_limit,
+                                                                       updatedo_flags)
 
     if elem not in solar_abu:
         return elem_vals, errors, elem_counts, elem_limits
@@ -127,7 +137,7 @@ def check_settings(elem, elem_line_dict, use_line, use_method, method_flags, bc_
 
 def combine_measurements(table, group, elem, elem_line_dict, best_lines,
                          use_line, use_method, method_flags, bc_flags,
-                         limit_setting, zero_points):
+                         limit_setting, zero_points, convol_limit, updatedo_flags):
     '''
     A function to average line-by-line abundances from BACCHUS (converted to a
     compiled hdf5 table) with an arbitrary choice of lines, methods and flags.
@@ -242,6 +252,7 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
             line_abu = np.zeros(len(elem_table))
             line_count = np.zeros(len(elem_table))
             line_error = np.zeros(len(elem_table))
+            line_error_count = np.zeros(len(elem_table))
             flags = np.ones(len(elem_table))
 
             # Loop through each method if it is used and recored which stars
@@ -252,6 +263,13 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
                     flags,
                     np.in1d(elem_table[f'{elem}_{i+1}_flag_{method}'],
                             method_flags[method][i])
+                )
+
+            for bc, settings in bc_flags.items():
+                flags = np.logical_and(
+                    flags,
+                    np.in1d(elem_table[f'{elem}_{i+1}_flag_{bc}'],
+                            settings[i])
                 )
 
             if zero_points[elem] is None:
@@ -265,6 +283,10 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
                     column = f'{elem}_{i + 1}_{method}'
                     line_abu[flags] += elem_table[column][flags]
                     line_count += flags
+                # if setting[i] == 1:
+                if method in ['chi2', 'wln']:
+                    column = f'{elem}_{i + 1}_{method}'
+                    line_error_count += flags
                     line_error[flags] += (elem_table[column]
                                           [flags] - elem_vals[flags] - line_zero_point)**2.
 
@@ -283,17 +305,27 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
                                            line_count != 0)
 
             errors[line_measured] += line_error[line_measured]
-            elem_error_counts[line_measured] += line_count[line_measured]
+            elem_error_counts[line_measured] += line_error_count[line_measured]
 
     elem_measured = np.logical_not(np.isnan(elem_vals))
     # Take the standard deviation of different line and method abundance
     # measurements and divide by the number of lines used to get a standard
     # error of the mean where the sample size is n lines not n measurements
     # because the different methods aren't independent samples
+
+    old_errors = np.array(errors)
+
     errors[elem_measured] = (np.sqrt(errors[elem_measured] / (elem_error_counts[
         elem_measured] - 1))) / np.sqrt(elem_counts[elem_measured])
 
     errors[np.isnan(elem_vals)] = np.nan
+
+    elem_vals[param_table['convol'] <= convol_limit(param_table)] = np.nan
+    errors[param_table['convol'] <= convol_limit(param_table)] = np.nan
+    elem_limits[param_table['convol'] <= convol_limit(param_table)] = np.nan
+
+    elem_vals[updatedo_flags == 1] = np.nan
+    errors[updatedo_flags == 1] = np.nan
 
     return elem_vals, errors, elem_counts, elem_limits
 
@@ -312,9 +344,11 @@ def package_lines(table, group, elem, path='.', elem_line_dict=None):
     elem_table = table[f'{group}/{elem}']
 
     methods = ['syn', 'eqw', 'int', 'chi2', 'wln']
+    bc_methods = ['blend', 'cont']
 
     abu_array = np.zeros((len(elem_table), len(elem_line_dict[elem]), 5))
     flag_array = np.zeros((len(elem_table), len(elem_line_dict[elem]), 5))
+    bc_flag_array = np.zeros((len(elem_table), len(elem_line_dict[elem]), 2))
 
     for j, method in enumerate(methods):
         for i in range(len(elem_line_dict[elem])):
@@ -323,4 +357,9 @@ def package_lines(table, group, elem, path='.', elem_line_dict=None):
             abu_array[:, i, j] = elem_table[abu_column]
             flag_array[:, i, j] = elem_table[flag_column]
 
-    return abu_array, flag_array
+    for j, method in enumerate(bc_methods):
+        for i in range(len(elem_line_dict[elem])):
+            bc_flag_column = f'{elem}_{i+1}_flag_{method}'
+            bc_flag_array[:, i, j] = elem_table[bc_flag_column]
+
+    return abu_array, flag_array, bc_flag_array
