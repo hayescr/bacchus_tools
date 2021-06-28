@@ -74,7 +74,7 @@ def compile_measurements(path, directory, filename, elem_line_dict=None,
     if elem_line_dict is None:
         elem_line_dict = get_element_list(path)
 
-    if stars or elements is None:
+    if stars is None or elements is None:
         stars, elements = read_stars(path, directory,
                                      update_starlist=update_starlist)
 
