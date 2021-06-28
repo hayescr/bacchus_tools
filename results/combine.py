@@ -189,6 +189,14 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
             for method, setting in use_method.items():
                 if setting[i] == 1:
                     column = f'{elem}_{i + 1}_{method}'
+                    # if elem == 'C12C13':
+                    #     line_abu[np.logical_and(
+                    #         flags, elem_table[column] > 0.)] += np.log10(elem_table[column][np.logical_and(flags, elem_table[column] > 0.)])
+                    #     line_count += np.logical_and(
+                    #         flags, elem_table[column] > 0.)
+                    # else:
+                    #     line_abu[flags] += elem_table[column][flags]
+                    #     line_count += flags
                     line_abu[flags] += elem_table[column][flags]
                     line_count += flags
 
@@ -208,13 +216,22 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
             elif zero_points[elem]['source'] == 'line_by_line':
                 line_zero_point = zero_points[elem]['values'][elem_line_dict[elem][i]]
 
+            line_limit[np.logical_not(flags)] = np.nan
             elem_limits = np.fmin(elem_limits, line_limit)
 
-            line_measured = np.logical_and(line_abu / line_count > line_limit,
-                                           line_count != 0)
+            if elem == 'C12C13':
+                line_measured = np.logical_and(line_abu / line_count < line_limit,
+                                               line_count != 0)
 
-            limit_measured = np.logical_and(
-                line_abu / line_count <= line_limit, line_count != 0)
+                limit_measured = np.logical_and(
+                    line_abu / line_count >= line_limit, line_count != 0)
+
+            else:
+                line_measured = np.logical_and(line_abu / line_count > line_limit,
+                                               line_count != 0)
+
+                limit_measured = np.logical_and(
+                    line_abu / line_count <= line_limit, line_count != 0)
 
             # Average the method abundances and add one to the count if this
             # line is measured
@@ -238,6 +255,9 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
     elem_vals[best_line_not_meas] = np.nan
     elem_limits[np.logical_or(np.logical_not(
         np.isnan(elem_vals)), elem_limit_counts == 0)] = np.nan
+    if elem == 'C12C13':
+        elem_counts[elem_vals < 0.] = 0
+        elem_vals[elem_vals < 0.] = np.nan
 
     # ----------------------- Calculate uncertainties ------------------------ #
 
@@ -301,8 +321,12 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
                 # line_limit = np.fmax(elem_table[climit], calc_limit)
                 line_limit = calc_limit
 
-            line_measured = np.logical_and(line_abu / line_count > line_limit,
-                                           line_count != 0)
+            if elem == 'C12C13':
+                line_measured = np.logical_and(line_abu / line_count < line_limit,
+                                               line_count != 0)
+            else:
+                line_measured = np.logical_and(line_abu / line_count > line_limit,
+                                               line_count != 0)
 
             errors[line_measured] += line_error[line_measured]
             elem_error_counts[line_measured] += line_error_count[line_measured]
@@ -326,6 +350,9 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
 
     elem_vals[updatedo_flags == 1] = np.nan
     errors[updatedo_flags == 1] = np.nan
+
+    if elem == 'C12C13':
+        errors = np.minimum(errors, 50.)
 
     return elem_vals, errors, elem_counts, elem_limits
 
