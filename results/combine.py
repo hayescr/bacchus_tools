@@ -346,10 +346,13 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
 
     elem_vals[param_table['convol'] <= convol_limit(param_table)] = np.nan
     errors[param_table['convol'] <= convol_limit(param_table)] = np.nan
+    elem_counts[param_table['convol'] <= convol_limit(param_table)] = 0
     elem_limits[param_table['convol'] <= convol_limit(param_table)] = np.nan
 
     elem_vals[updatedo_flags == 1] = np.nan
     errors[updatedo_flags == 1] = np.nan
+    elem_counts[updatedo_flags == 1] = 0
+    elem_limits[updatedo_flags == 1] = np.nan
 
     if elem == 'C12C13':
         errors = np.minimum(errors, 50.)

@@ -128,7 +128,7 @@ def write_fits(tablenames, groups, elements, elements_filepath='.',
                            'ALPHA_FE_MODEL', 'C_FE_MODEL', 'CONVOL', 'SNR', 'UPDATE_C',
                            'UPDATE_N', 'UPDATE_O']
 
-            param_formats = ['A19', 'E', 'E', 'E', 'E',
+            param_formats = ['A21', 'E', 'E', 'E', 'E',
                              'E',  'E', 'E', 'E', 'I', 'I', 'I']
 
             param_col_names = ['STAR_ID', 'teff', 'logg', 'fe_h', 'vmicro', 'alpha_fe',
