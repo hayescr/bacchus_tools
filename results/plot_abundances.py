@@ -358,7 +358,6 @@ def line_by_line_plots(table, group, elem, plot_content='xfe',
                         cset1 = h.density2d_to_points(xs, ys, ax=ax,
                                                       bins=150, masklim=5, xlim=xlim,
                                                       ylim=ylim, cmap='viridis',
-                                                      norm=colors.LogNorm(),
                                                       interpolation='nearest',
                                                       label=str(
                                                           elem_line_dict[elem][i]),
@@ -507,7 +506,7 @@ def line_by_line_combined_plots(table, group, elem, plot_content='xfe',
             ylim = [-1, 1]
             xinvert = True
             yinvert = False
-            xlabel = 'Logg'
+            xlabel = 'log g'
             ylabel = f'[{elem}/Fe]'
             xs = table[f'{group}/param']['logg']
             if elem not in solar_abu:
@@ -553,7 +552,6 @@ def line_by_line_combined_plots(table, group, elem, plot_content='xfe',
                 cset1 = h.density2d_to_points(xs, ys, ax=ax,
                                               bins=150, masklim=5, xlim=xlim,
                                               ylim=ylim, cmap='viridis',
-                                              norm=colors.LogNorm(),
                                               interpolation='nearest',
                                               label=str(
                                                   elem_line_dict[elem][i]),
@@ -664,7 +662,7 @@ def line_combination_plots(table, group, elem, plot_content='xfe',
         ylim = [-1, 1]
         xinvert = True
         yinvert = False
-        xlabel = 'Teff'
+        xlabel = 'log g'
         ylabel = f'[{elem}/Fe]'
         xs = table[f'{group}/param']['logg']
         if elem not in solar_abu:
@@ -709,7 +707,6 @@ def line_combination_plots(table, group, elem, plot_content='xfe',
             cset1 = h.density2d_to_points(xs, ys, ax=ax,
                                           bins=150, masklim=5, xlim=xlim,
                                           ylim=ylim, cmap='viridis',
-                                          norm=colors.LogNorm(),
                                           interpolation='nearest',
                                           zorder=1)
     else:

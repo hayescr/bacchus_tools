@@ -253,6 +253,7 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
         elem_counts[elem_counts != 0]
     elem_vals[elem_counts == 0] = np.nan
     elem_vals[best_line_not_meas] = np.nan
+    elem_counts[best_line_not_meas] = 0
     elem_limits[np.logical_or(np.logical_not(
         np.isnan(elem_vals)), elem_limit_counts == 0)] = np.nan
     if elem == 'C12C13':
