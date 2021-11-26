@@ -217,7 +217,7 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
                 line_zero_point = zero_points[elem]['values'][elem_line_dict[elem][i]]
 
             line_limit[np.logical_not(flags)] = np.nan
-            elem_limits = np.fmin(elem_limits, line_limit)
+            elem_limits = np.fmin(elem_limits, line_limit - line_zero_point)
 
             if elem == 'C12C13':
                 line_measured = np.logical_and(line_abu / line_count < line_limit,
