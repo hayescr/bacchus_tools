@@ -30,8 +30,8 @@ def read_stars(path, directory, update_starlist=False):
                     file = file[1]
                     file = file.rstrip('.abu')
                     file = file.split('_')
-                    # star = f'{file[0]}_{file[1]}'
-                    star = file[0]
+                    star = f'{file[0]}_{file[1]}'
+                    # star = file[0]
                     star = star.rstrip('tmp')
                     stars += [star]
                 else:
@@ -160,7 +160,7 @@ def extract_element(path, directory, stars, element, lines):
             col_id = 1
             for line in lines:
                 if np.any(data['lambda'] == line):
-                        # print(np.array(data[data['lambda'] == line][0]))
+                    # print(np.array(data[data['lambda'] == line][0]))
                     row += [*data[data['lambda'] == line][0]]
 
                     row += [flag_file_value(blend_data, element, line)]
@@ -190,7 +190,7 @@ def extract_element(path, directory, stars, element, lines):
     new_header = []
     new_header += ['STAR_ID']
     new_dtypes = []
-    new_dtypes += ['S21']
+    new_dtypes += ['S24']
 
     for i in range(len(lines)):
         for label, dtype in zip(header, dtypes):
@@ -279,7 +279,7 @@ def extract_parameters(path, directory, stars):
     header = ['STAR_ID', 'teff', 'logg', 'fe_h', 'vmicro', 'alpha_fe',  'c_fe',
               'convol', 'snr', 'c_iter', 'n_iter', 'o_iter']
 
-    dtypes = ['S21', np.float_, np.float_, np.float_, np.float_, np.float_,
+    dtypes = ['S24', np.float_, np.float_, np.float_, np.float_, np.float_,
               np.float_, np.float_, np.float_, np.int8, np.int8, np.int8]
 
     input_dtype = [(value) for value in zip(header, dtypes)]

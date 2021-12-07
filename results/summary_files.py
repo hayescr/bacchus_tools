@@ -81,8 +81,8 @@ def write_fits(tablenames, groups, elements, elements_filepath='.',
             for name, fits_format, col_name in zip(apogee_param_names, apogee_param_formats, apogee_param_col_names):
                 if col_name == 'ALPHA_M':
                     alpha_m = apogee_table['PARAM'][:, 6]
-                    alpha_m[alpha_m < -
-                            0.72] = hdf5_table[f'{group}/param']['alpha_fe'][alpha_m < -0.72]
+                    alpha_m[alpha_m <
+                            - 0.72] = hdf5_table[f'{group}/param']['alpha_fe'][alpha_m < -0.72]
                     columns_list += [fits.Column(name=name, format=fits_format,
                                                  array=alpha_m)]
                 elif col_name == 'M_H':
@@ -128,7 +128,7 @@ def write_fits(tablenames, groups, elements, elements_filepath='.',
                            'ALPHA_FE_MODEL', 'C_FE_MODEL', 'CONVOL', 'SNR', 'UPDATE_C',
                            'UPDATE_N', 'UPDATE_O']
 
-            param_formats = ['A21', 'E', 'E', 'E', 'E',
+            param_formats = ['A24', 'E', 'E', 'E', 'E',
                              'E',  'E', 'E', 'E', 'I', 'I', 'I']
 
             param_col_names = ['STAR_ID', 'teff', 'logg', 'fe_h', 'vmicro', 'alpha_fe',

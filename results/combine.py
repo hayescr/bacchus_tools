@@ -235,8 +235,8 @@ def combine_measurements(table, group, elem, elem_line_dict, best_lines,
 
             # Average the method abundances and add one to the count if this
             # line is measured
-            elem_vals[line_measured] += (line_abu[line_measured] /
-                                         line_count[line_measured]) - line_zero_point
+            elem_vals[line_measured] += (line_abu[line_measured]
+                                         / line_count[line_measured]) - line_zero_point
             elem_counts += line_measured
 
             elem_limit_counts += limit_measured
