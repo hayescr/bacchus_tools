@@ -27,15 +27,22 @@ def read_stars(path, directory, update_starlist=False):
                     file = file.split(u'-', 1)
                     element = file[0]
                     elements += [element]
-                    file = file[1]
-                    file = file.rstrip('.abu')
-                    file = file.split('_')
-                    star = f'{file[0]}_{file[1]}'
-                    # star = file[0]
-                    star = star.rstrip('tmp')
+                    # file = file[1]
+                    # file = file.rstrip('.abu')
+                    # file = file.split('_')
+                    # star = f'{file[0]}_{file[1]}'
+                    # # star = file[0]
+                    # star = star.rstrip('tmp')
+                    # stars += [star]
+                elif '.par' in file:
+                    file = file.rstrip('.par')
+                    star = file
                     stars += [star]
                 else:
                     pass
+            # for directory in directories:
+            #     star = directory
+            #     stars += [star]
         stars = np.array(stars)
         stars = np.unique(stars)
         elements = np.array(elements)
