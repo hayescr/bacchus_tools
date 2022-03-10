@@ -12,7 +12,7 @@ def write_fits(tablenames, groups, elements, elements_filepath='.',
                use_method_dict=None, method_flags_dict=None, bc_flags_dict=None,
                limit_setting=None, zero_points=None, convol_limit=None,
                updatedo_flags_dict=None, overwrite=False, use_apogee_param=False,
-               apogee_table=None, repeat_errors_dict=None):
+               apogee_table=None, repeat_errors_dict=None, spec_proc=None):
 
     # Load solar abundances
     solar_abu = asplund_2005()
@@ -170,6 +170,26 @@ def write_fits(tablenames, groups, elements, elements_filepath='.',
                                                                             zero_points=zero_points,
                                                                             convol_limit=convol_limit,
                                                                             updatedo_flags=updatedo_flags_dict[element])
+
+            if spec_proc is not None:
+                if spec_proc[element] is not None:
+                    x_h, x_h_err, x_n_lines, x_h_lim = spec_proc[element](x_h,
+                                                                          x_h_err, x_n_lines, x_h_lim,
+                                                                          hdf5_table=hdf5_table,
+                                                                          group=group,
+                                                                          element=element,
+                                                                          solar_abu=solar_abu,
+                                                                          elem_line_dict=elem_line_dict,
+                                                                          best_lines_dict=best_lines_dict,
+                                                                          use_line_dict=use_line_dict,
+                                                                          use_method_dict=use_method_dict,
+                                                                          method_flags_dict=method_flags_dict,
+                                                                          bc_flags_dict=bc_flags_dict,
+                                                                          limit_setting=limit_setting,
+                                                                          zero_points=zero_points,
+                                                                          convol_limit=convol_limit,
+                                                                          updatedo_flags_dict=updatedo_flags_dict
+                                                                          )
 
             x_line_abu, x_line_flags, x_bc_flags = combine.package_lines(
                 hdf5_table, group, element, elem_line_dict=elem_line_dict)
